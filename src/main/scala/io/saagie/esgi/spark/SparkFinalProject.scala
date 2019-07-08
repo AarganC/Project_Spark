@@ -8,7 +8,7 @@ object SparkFinalProject {
 
 
   def main(args: Array[String]) {
-    val PATH = "data"
+    val PATH = "data/beers-breweries-and-beer-reviews"
 
     val spark = SparkSession.builder()
       .appName("Final-Project-Spark-G4")

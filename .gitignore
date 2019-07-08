@@ -3,7 +3,8 @@
 _Test/
 metastore_db/
 
-data/
+data/beers-breweries-and-beer-reviews/*
+.csv
 
 # sbt specific
 .cache
