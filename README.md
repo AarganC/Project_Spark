@@ -25,3 +25,7 @@ sbt assembly
 sbt test
 ```
 
+##### Data
+
+https://www.kaggle.com/ehallmar/beers-breweries-and-beer-reviews/downloads/beers-breweries-and-beer-reviews.zip/2
+
