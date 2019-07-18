@@ -5,6 +5,7 @@ metastore_db/
 
 data/beers-breweries-and-beer-reviews/*
 .csv
+data/beers-breweries-and-beer-reviews.zip
 
 # sbt specific
 .cache

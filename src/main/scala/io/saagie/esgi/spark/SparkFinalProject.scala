@@ -1,10 +1,18 @@
 package io.saagie.esgi.spark
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.functions._
+import org.apache.log4j.Logger
 
 
 object SparkFinalProject {
+
+  case class Beer(id: Int, name: String, brewery_id: String, state: String, country: String, style: String, availability: String, abv: String, notes: String, retired: String)
+  case class Breweries(id: Int, name: String, city: String, state: String, country: String, notes: String , types: String)
+  case class Review(beer_id: Int, username: String, date: String, text: String, look: String, smell: String, taste: String, feel: String, overall: String, score: String)
+  case class StopWords(text: String)
+
+  //lazy val log = Logger.getLogger(this.getClass.getName)
 
 
   def main(args: Array[String]) {
@@ -14,83 +22,65 @@ object SparkFinalProject {
       .appName("Final-Project-Spark-G4")
       .getOrCreate()
 
-    val schema_beer = StructType(Array(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("brewery_id", StringType, true),
-      StructField("state", StringType, true),
-      StructField("country", StringType, true),
-      StructField("style", StringType, true),
-      StructField("availability", StringType, true),
-      StructField("abv", FloatType, true),
-      StructField("notes", StringType, true),
-      StructField("retired", BooleanType, true)
-    ))
+    import spark.implicits._
+
 
     val beer = spark
       .read
+      .option("delimiter", ",")
+      .option("header", "true")
       .option("inferSchema", "true")
-      .option("header", "false")
-      .schema(schema_beer)
+      .option("quote", "\"")
+      .option("escape", "\"")
       .csv(s"$PATH/beers.csv")
-      .select("id", "name", "country", "style", "brewery_id")
-
-    val schema_breweries = StructType(Array(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("city", StringType, true),
-      StructField("state", StringType, true),
-      StructField("country", StringType, true),
-      StructField("notes", StringType, true),
-      StructField("types", StringType, true)
-    ))
+      //.createOrReplaceTempView("beer")
+    val dsBeer: Dataset[Beer] = beer.as[Beer]
 
     val breweries = spark
       .read
+      .option("delimiter", ",")
+      .option("header", "true")
       .option("inferSchema", "true")
-      .option("header", "false")
-      .schema(schema_breweries)
+      .option("quote", "\"")
+      .option("escape", "\"")
       .csv(s"$PATH/breweries.csv")
-      .select("id", "types")
-
-    val schema_reviews = StructType(Array(
-      StructField("id", IntegerType, true),
-      StructField("username", StringType, true),
-      StructField("date", DateType, true),
-      StructField("text", StringType, true),
-      StructField("look", IntegerType, true),
-      StructField("smell", IntegerType, true),
-      StructField("taste", IntegerType, true),
-      StructField("feel", IntegerType, true),
-      StructField("overall", IntegerType, true),
-      StructField("score", IntegerType, true)
-    ))
+      //.createOrReplaceTempView("breweries")
+    val dsBreweries: Dataset[Breweries] = breweries.as[Breweries]
 
     val reviews = spark
       .read
+      .option("delimiter", ",")
+      .option("header", "true")
       .option("inferSchema", "true")
-      .option("header", "false")
-      .schema(schema_reviews)
+      .option("quote", "\"")
+      .option("escape", "\"")
       .csv(s"$PATH/reviews.csv")
-      .select("id", "score", "text")
+      //.createOrReplaceTempView("reviews")
+    val dsReview: Dataset[Review] = reviews.as[Review]
 
-    val df = beer.join(breweries, usingColumn = "id")
-        .join(reviews, usingColumn = "id")
-        .select("country", "name", "types", "score", "text", "brewery_id")
-        .createOrReplaceTempView("tmp_data")
+    val max_avg_beer = dsReview.groupBy("beer_id")
+      .agg(avg("score").alias("avg_score"))
+      .withColumnRenamed("beer_id", "id")
+      .join(dsBeer, "id")
+      .select("name", "avg_score")
+      .orderBy(desc("avg_score"))
 
-    val max_score = spark.sqlContext("SELECT MAX(score) FROM tmp_data")
-    val max_avg = spark.sqlContext("SELECT MAX(AVG(score)) FROM tmp_data")
-    val top_type = spark.sqlContext("SELECT brewery_id, types, count(brewery_id) as count_brasserie FROM tmp_data WHERE types like '%Beer-to-go%' GROUP BY brewery_id, types ORDER BY count(brewery_id) ASC LIMIT 10")
+    val max_avg_breweries = dsReview.withColumnRenamed("beer_id", "id")
+      .join(dsBreweries, "id")
+      .groupBy("name")
+      .agg(avg("score").alias("avg_score"))
+      .select("name", "avg_score")
+      .orderBy(desc("avg_score"))
 
-    val words = reviews.select("text")
-      .filter("text is not null")
-      .withColumn("col1", split(col("text"), " "))
-        .map(x => (x,1) )
-        .reduce(_._)
+    val top_breweries = dsBreweries.filter($"types".contains("Beer-to-go"))
+      .groupBy("country")
+      .count
+      .orderBy(desc("count"))
 
-
-    Thread.sleep(args(0).toLong)
+    max_avg_beer.select("Select name, MAX(avg_score)").show
+    max_avg_breweries.select("Select name, MAX(avg_score)").show
+    top_breweries.show(10)
+    //log.info(top_breweries.show(10))
   }
 
 }
