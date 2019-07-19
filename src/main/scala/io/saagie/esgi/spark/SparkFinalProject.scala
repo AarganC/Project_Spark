@@ -20,7 +20,7 @@ object SparkFinalProject {
 
     import spark.implicits._
 
-    val stopWords = spark.read.text("data/common-english-words.txt")
+    val stopWords = spark.read.text(s"$PATH/common-english-words.txt")
       .flatMap(row => row.getString(0)
       .split(","))
 
